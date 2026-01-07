@@ -63,30 +63,50 @@ export type Opportunity = {
   }
   
   async function fetchAllMainnetMarkets(): Promise<PendleMarket[]> {
-    // Your response shape matches: array of markets
-    // Keep a couple of candidates in case Pendle changes paths.
-    const candidates = [
-      `${PENDLE_CORE_BASE}/v1/1/markets?limit=1000`,
-      `${PENDLE_CORE_BASE}/v1/1/markets`,
-    ];
-  
-    let lastErr: unknown;
-    for (const url of candidates) {
+    const limit = 100; // Max limit that works
+    let skip = 0;
+    let allMarkets: PendleMarket[] = [];
+    let hasMore = true;
+    
+    console.log(`🔄 Starting to fetch all Pendle markets with pagination...`);
+    
+    while (hasMore) {
+      const url = `${PENDLE_CORE_BASE}/v1/1/markets?limit=${limit}&skip=${skip}`;
+      
       try {
         const data = await fetchJson<any>(url);
-  
-        if (Array.isArray(data)) return data as PendleMarket[];
-        if (Array.isArray(data?.markets)) return data.markets as PendleMarket[];
-        if (Array.isArray(data?.data)) return data.data as PendleMarket[];
-        if (Array.isArray(data?.results)) return data.results as PendleMarket[];
-  
-        throw new Error(`Unexpected response shape from ${url}`);
+        
+        if (data?.results && Array.isArray(data.results)) {
+          const fetchedCount = data.results.length;
+          allMarkets.push(...data.results);
+          
+          console.log(`✅ Fetched ${fetchedCount} markets (total so far: ${allMarkets.length}/${data.total || '?'})`);
+          
+          // Check if we've fetched everything
+          if (fetchedCount < limit || allMarkets.length >= (data.total || Infinity)) {
+            hasMore = false;
+            console.log(`🏁 Finished! Fetched all ${allMarkets.length} markets`);
+          } else {
+            skip += limit;
+          }
+        } else {
+          hasMore = false;
+          console.error(`❌ Unexpected response format`);
+        }
       } catch (e) {
-        lastErr = e;
+        hasMore = false;
+        console.error(`❌ Failed fetching markets at skip=${skip}:`, e instanceof Error ? e.message : 'Unknown error');
+        
+        // If we already have some markets, return them instead of failing completely
+        if (allMarkets.length > 0) {
+          console.log(`⚠️ Returning ${allMarkets.length} markets fetched before error`);
+          break;
+        }
+        throw new Error("Failed to fetch Pendle markets");
       }
     }
-  
-    throw lastErr instanceof Error ? lastErr : new Error("Failed to fetch Pendle markets");
+    
+    return allMarkets;
   }
   
   function marketUnderlyingLabel(m: PendleMarket): string | undefined {
@@ -99,8 +119,15 @@ export type Opportunity = {
     return typeof tvl === "number" && Number.isFinite(tvl) ? tvl : 0;
   }
   
-  function isTargetMarket(m: PendleMarket): boolean {
-    if (m.chainId !== 1) return false;
+  function isExpired(expiry?: string | null): boolean {
+    if (!expiry) return false;
+    const expiryDate = new Date(expiry);
+    const now = new Date();
+    return expiryDate < now;
+  }
+
+  function isTargetMarket(m: PendleMarket, targetChainId: number): boolean {
+    if (m.chainId !== targetChainId) return false;
     const label = marketUnderlyingLabel(m);
     if (!label) return false;
     
@@ -110,12 +137,14 @@ export type Opportunity = {
     return labelLower.includes("eth");
   }
   
-  export async function getPendleYields(): Promise<YieldsResponse> {
+  export async function getPendleYields(chainId: number = 1): Promise<YieldsResponse> {
     const markets = await fetchAllMainnetMarkets();
   
     console.log(`📊 Total markets fetched: ${markets.length}`);
-    const ethMarkets = markets.filter(isTargetMarket);
-    console.log(`🎯 ETH markets after filtering: ${ethMarkets.length}`);
+  const ethMarkets = markets
+  .filter(m => isTargetMarket(m, chainId))
+  .filter(m => !isExpired(m.expiry)); // Remove expired markets
+  console.log(`🎯 ETH markets after filtering: ${ethMarkets.length}`);
   
     const opportunities: Opportunity[] = ethMarkets
       .map((m) => {
