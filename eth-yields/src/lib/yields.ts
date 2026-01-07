@@ -1,4 +1,5 @@
 import { getPendleYields } from "@/yield-sources/pendle";
+import { getStakeDAOYields } from "@/yield-sources/stakeDAO";
 
 export type Opportunity = {
     protocol: string;
@@ -93,16 +94,23 @@ export type Opportunity = {
           url: "https://rocketpool.net",
         });
       }
+      
       try {
         const pendle = await getPendleYields();
-        console.log(`✅ Pendle returned ${pendle.opportunities.length} opportunities`);
         opportunities.push(...pendle.opportunities);
       } catch (error) {
-        console.error("❌ Pendle fetch failed:", error);
+        console.error("Pendle fetch error:", error);
+      }
+
+      try {
+        const stakeDAO = await getStakeDAOYields();
+        opportunities.push(...stakeDAO.opportunities);
+      } catch (error) {
+        console.error("StakeDAO fetch error:", error);
       }
     
-    } catch {
-      // ignore
+    } catch (error) {
+      console.error("Main yields fetch error:", error);
     }
   
     // Minimal fallback
@@ -115,11 +123,15 @@ export type Opportunity = {
         { protocol: "Pendle", product: "PT ysETH", tvlUsd: 0, apyPct: 0, url: "https://app.pendle.finance" },
         { protocol: "Pendle", product: "PT pufETH", tvlUsd: 0, apyPct: 0, url: "https://app.pendle.finance" },
         { protocol: "Pendle", product: "PT tETH", tvlUsd: 0, apyPct: 0, url: "https://app.pendle.finance" },
-        { protocol: "Pendle", product: "PT strETH", tvlUsd: 0, apyPct: 0, url: "https://app.pendle.finance" }
-        
+        { protocol: "Pendle", product: "PT strETH", tvlUsd: 0, apyPct: 0, url: "https://app.pendle.finance" },
+        { protocol: "StakeDAO", product: "ETH+/WETH", tvlUsd: 0, apyPct: 0, url: "https://curve.fi" },
+        { protocol: "StakeDAO", product: "msETH/WETH", tvlUsd: 0, apyPct: 0, url: "https://curve.fi" },
+        { protocol: "StakeDAO", product: "alETH/WETH", tvlUsd: 0, apyPct: 0, url: "https://curve.fi" },
+        { protocol: "StakeDAO", product: "msETH/OETH", tvlUsd: 0, apyPct: 0, url: "https://curve.fi" },
+        { protocol: "StakeDAO", product: "alETH/frxETH", tvlUsd: 0, apyPct: 0, url: "https://curve.fi" },
+        { protocol: "StakeDAO", product: "dgnETH/ETH+", tvlUsd: 0, apyPct: 0, url: "https://curve.fi" }
       );
     }
   
     return { updatedAt, opportunities };
   }
-  
