@@ -95,9 +95,10 @@ export type Opportunity = {
       }
       try {
         const pendle = await getPendleYields();
+        console.log(`✅ Pendle returned ${pendle.opportunities.length} opportunities`);
         opportunities.push(...pendle.opportunities);
-      } catch {
-        // ignore
+      } catch (error) {
+        console.error("❌ Pendle fetch failed:", error);
       }
     
     } catch {

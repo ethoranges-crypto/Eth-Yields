@@ -39,7 +39,7 @@ export type Opportunity = {
   const PENDLE_CORE_BASE = "https://api-v2.pendle.finance/core";
   
   // Your allowlist
-  const TARGET_UNDERLYINGS = new Set(["ghETH", "dETH", "ysETH", "pufETH", "tETH", "strETH"]);
+ // Removed fixed allowlist - now accepting all ETH-denominated markets
   
   async function fetchJson<T>(url: string, opts?: RequestInit): Promise<T> {
     const res = await fetch(url, {
@@ -103,15 +103,21 @@ export type Opportunity = {
     if (m.chainId !== 1) return false;
     const label = marketUnderlyingLabel(m);
     if (!label) return false;
-    return TARGET_UNDERLYINGS.has(label);
+    
+    // Accept all markets where the underlying contains "ETH"
+    // This captures stETH, rETH, eETH, weETH, pufETH, etc.
+    const labelLower = label.toLowerCase();
+    return labelLower.includes("eth");
   }
   
   export async function getPendleYields(): Promise<YieldsResponse> {
     const markets = await fetchAllMainnetMarkets();
-
-
-    const opportunities: Opportunity[] = markets
-      .filter(isTargetMarket)
+  
+    console.log(`📊 Total markets fetched: ${markets.length}`);
+    const ethMarkets = markets.filter(isTargetMarket);
+    console.log(`🎯 ETH markets after filtering: ${ethMarkets.length}`);
+  
+    const opportunities: Opportunity[] = ethMarkets
       .map((m) => {
         const label = marketUnderlyingLabel(m) ?? "Unknown";
         const exp = expiryDate(m.expiry);
@@ -123,7 +129,7 @@ export type Opportunity = {
           protocol: "Pendle",
           product,
           tvlUsd: marketTvlUsd(m),
-          apyPct: asPct(m.impliedApy), // PT fixed/implied APY
+          apyPct: asPct(m.impliedApy),
           url,
         };
       })
@@ -134,4 +140,3 @@ export type Opportunity = {
       opportunities,
     };
   }
-  
