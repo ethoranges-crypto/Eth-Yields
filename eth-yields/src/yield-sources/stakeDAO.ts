@@ -89,13 +89,33 @@ export type Opportunity = {
         .map(s => s.name);
       console.log("All ETH strategies:", ethStrategies);
   
-      const opportunities: Opportunity[] = strategies
+      // Group duplicates by name and pick the one with highest TVL
+      const strategyMap = new Map<string, StakeDAOStrategy>();
+      
+      strategies
         .filter(isValidStakeDAOStrategy)
+        .forEach((strategy) => {
+          const name = strategy.name;
+          const existing = strategyMap.get(name);
+          
+          // Keep the one with higher TVL
+          if (!existing || strategyTvlUsd(strategy) > strategyTvlUsd(existing)) {
+            strategyMap.set(name, strategy);
+          }
+        });
+  
+      const opportunities: Opportunity[] = Array.from(strategyMap.values())
         .map((strategy) => {
           const product = strategy.name;
           
-          // Generate Curve pool URL if we have the address
-          const poolAddress = strategy.address || strategy.gauge || "";
+          // Safely extract address as string
+          let poolAddress = "";
+          if (typeof strategy.address === "string") {
+            poolAddress = strategy.address;
+          } else if (typeof strategy.gauge === "string") {
+            poolAddress = strategy.gauge;
+          }
+          
           const url = poolAddress
             ? `https://curve.fi/#/ethereum/pools/${poolAddress}/deposit`
             : "https://curve.fi";

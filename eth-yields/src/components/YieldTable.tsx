@@ -77,11 +77,11 @@ export default function YieldTable({ opportunities }: Props) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
-              <tr
-              key={r.url}
-                className="border-t border-zinc-800"
-              >
+          {rows.map((r, index) => (
+  <tr
+    key={`${r.protocol}-${r.product}-${index}`}
+    className="border-t border-zinc-800"
+  >          
                 <td className="px-4 py-3 font-medium">{r.protocol}</td>
                 <td className="px-4 py-3">{r.product}</td>
                 <td className="px-4 py-3">{formatUsd(r.tvlUsd)}</td>

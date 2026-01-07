@@ -104,7 +104,9 @@ export type Opportunity = {
 
       try {
         const stakeDAO = await getStakeDAOYields();
+        console.log("StakeDAO opportunities before push:", stakeDAO.opportunities.length);
         opportunities.push(...stakeDAO.opportunities);
+        console.log("Total opportunities after StakeDAO:", opportunities.length);
       } catch (error) {
         console.error("StakeDAO fetch error:", error);
       }
@@ -112,6 +114,11 @@ export type Opportunity = {
     } catch (error) {
       console.error("Main yields fetch error:", error);
     }
+
+    // Debug: Count StakeDAO entries
+    const stakeDaoCount = opportunities.filter(o => o.protocol === "StakeDAO").length;
+    console.log("Final StakeDAO count in opportunities:", stakeDaoCount);
+    console.log("Total final opportunities:", opportunities.length);
   
     // Minimal fallback
     if (opportunities.length === 0) {
