@@ -1,5 +1,6 @@
 import { getPendleYields } from "@/yield-sources/pendle";
 import { getStakeDAOYields } from "@/yield-sources/stakeDAO";
+import { getOriginYields } from "@/yield-sources/origin";
 
 export type Opportunity = {
     protocol: string;
@@ -110,6 +111,15 @@ export type Opportunity = {
       } catch (error) {
         console.error("StakeDAO fetch error:", error);
       }
+
+      try {
+        const origin = await getOriginYields();
+        console.log("Origin opportunities before push:", origin.opportunities.length);
+        opportunities.push(...origin.opportunities);
+        console.log("Total opportunities after Origin:", opportunities.length);
+      } catch (error) {
+        console.error("Origin fetch error:", error);
+      }
     
     } catch (error) {
       console.error("Main yields fetch error:", error);
@@ -136,7 +146,8 @@ export type Opportunity = {
         { protocol: "StakeDAO", product: "alETH/WETH", tvlUsd: 0, apyPct: 0, url: "https://curve.fi" },
         { protocol: "StakeDAO", product: "msETH/OETH", tvlUsd: 0, apyPct: 0, url: "https://curve.fi" },
         { protocol: "StakeDAO", product: "alETH/frxETH", tvlUsd: 0, apyPct: 0, url: "https://curve.fi" },
-        { protocol: "StakeDAO", product: "dgnETH/ETH+", tvlUsd: 0, apyPct: 0, url: "https://curve.fi" }
+        { protocol: "StakeDAO", product: "dgnETH/ETH+", tvlUsd: 0, apyPct: 0, url: "https://curve.fi" },
+        { protocol: "Origin Protocol", product: "ARM stETH Vault", tvlUsd: 0, apyPct: 0, url: "https://app.originprotocol.com" }
       );
     }
   
