@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Header from "@/components/Header";
 import { getYields } from "@/lib/yields";
+export const revalidate = 60;
 
 
 export default async function Home() {

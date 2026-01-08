@@ -1,6 +1,7 @@
 import Header from "@/components/Header";
 import YieldTable from "@/components/YieldTable";
 import { getYields } from "@/lib/yields";
+export const revalidate = 60;
 
 export default async function YieldSourcesPage() {
   const { updatedAt, opportunities } = await getYields();

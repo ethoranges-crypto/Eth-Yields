@@ -58,67 +58,76 @@ export type Opportunity = {
     const opportunities: Opportunity[] = [];
   
     try {
-      const data = await fetchJson<{ data: LlamaPool[] }>("https://yields.llama.fi/pools", {
-        cache: "no-store",
-      });
+      // Fetch ALL sources in parallel with Promise.allSettled
+      const [llamaResult, pendleResult, stakeDaoResult, originResult] = await Promise.allSettled([
+        fetchJson<{ data: LlamaPool[] }>("https://yields.llama.fi/pools", { cache: "no-store" }),
+        getPendleYields(),
+        getStakeDAOYields(),
+        getOriginYields(),
+      ]);
+
+      // Process DeFiLlama data (Lido, Rocket Pool)
+      if (llamaResult.status === "fulfilled") {
+        const pools = llamaResult.value.data ?? [];
   
-      const pools = data.data ?? [];
-  
-      const lido = pickBestPool(pools, {
-        project: "lido",
-        chain: "Ethereum",
-        symbolIncludes: ["steth"],
-      });
-  
-      const rocketPool = pickBestPool(pools, {
-        project: "rocket-pool",
-        chain: "Ethereum",
-        symbolIncludes: ["reth"],
-      });
-  
-      if (lido) {
-        opportunities.push({
-          protocol: "Lido",
-          product: "stETH",
-          tvlUsd: lido.tvlUsd,
-          apyPct: lido.apy ?? 0,
-          url: "https://lido.fi",
+        const lido = pickBestPool(pools, {
+          project: "lido",
+          chain: "Ethereum",
+          symbolIncludes: ["steth"],
         });
-      }
   
-      if (rocketPool) {
-        opportunities.push({
-          protocol: "Rocket Pool",
-          product: "rETH",
-          tvlUsd: rocketPool.tvlUsd,
-          apyPct: rocketPool.apy ?? 0,
-          url: "https://rocketpool.net",
+        const rocketPool = pickBestPool(pools, {
+          project: "rocket-pool",
+          chain: "Ethereum",
+          symbolIncludes: ["reth"],
         });
+  
+        if (lido) {
+          opportunities.push({
+            protocol: "Lido",
+            product: "stETH",
+            tvlUsd: lido.tvlUsd,
+            apyPct: lido.apy ?? 0,
+            url: "https://lido.fi",
+          });
+        }
+  
+        if (rocketPool) {
+          opportunities.push({
+            protocol: "Rocket Pool",
+            product: "rETH",
+            tvlUsd: rocketPool.tvlUsd,
+            apyPct: rocketPool.apy ?? 0,
+            url: "https://rocketpool.net",
+          });
+        }
+      } else {
+        console.error("DeFiLlama fetch error:", llamaResult.reason);
       }
       
-      try {
-        const pendle = await getPendleYields();
-        opportunities.push(...pendle.opportunities);
-      } catch (error) {
-        console.error("Pendle fetch error:", error);
+      // Process Pendle
+      if (pendleResult.status === "fulfilled") {
+        opportunities.push(...pendleResult.value.opportunities);
+      } else {
+        console.error("Pendle fetch error:", pendleResult.reason);
       }
 
-      try {
-        const stakeDAO = await getStakeDAOYields();
-        console.log("StakeDAO opportunities before push:", stakeDAO.opportunities.length);
-        opportunities.push(...stakeDAO.opportunities);
+      // Process StakeDAO
+      if (stakeDaoResult.status === "fulfilled") {
+        console.log("StakeDAO opportunities before push:", stakeDaoResult.value.opportunities.length);
+        opportunities.push(...stakeDaoResult.value.opportunities);
         console.log("Total opportunities after StakeDAO:", opportunities.length);
-      } catch (error) {
-        console.error("StakeDAO fetch error:", error);
+      } else {
+        console.error("StakeDAO fetch error:", stakeDaoResult.reason);
       }
 
-      try {
-        const origin = await getOriginYields();
-        console.log("Origin opportunities before push:", origin.opportunities.length);
-        opportunities.push(...origin.opportunities);
+      // Process Origin
+      if (originResult.status === "fulfilled") {
+        console.log("Origin opportunities before push:", originResult.value.opportunities.length);
+        opportunities.push(...originResult.value.opportunities);
         console.log("Total opportunities after Origin:", opportunities.length);
-      } catch (error) {
-        console.error("Origin fetch error:", error);
+      } else {
+        console.error("Origin fetch error:", originResult.reason);
       }
     
     } catch (error) {

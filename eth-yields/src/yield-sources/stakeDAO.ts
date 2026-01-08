@@ -31,14 +31,14 @@ export type Opportunity = {
   // StakeDAO API endpoint - fetching from GitHub
   const STAKEDAO_API = "https://raw.githubusercontent.com/stake-dao/api/refs/heads/main/api/strategies/v2/curve/1.json";
   
-  // Target StakeDAO Curve pools
-  const TARGET_POOLS = new Set([
-    "ETH+/WETH",
-    "msETH/WETH",
-    "alETH/WETH",
-    "msETH/OETH",
-    "alETH/frxETH",
-    "dgnETH/ETH+"
+  // Target StakeDAO Curve pools with their vault addresses
+  const TARGET_POOLS = new Map([
+    ["ETH+/WETH", "1-0x7d3dB01a4AC4aa27534d2951e58d59992686EA5C"],
+    ["msETH/WETH", "1-0x7053FA875C478045124CE3Ef740a189b6037DF91"],
+    ["alETH/WETH", "1-0xa5Ff611a09c4759D304276B770D8B9e1916032e7"],
+    ["msETH/OETH", "1-0xCAa77dA5F349034b0d80Ba7E28A0e77B2C5d701b"],
+    ["alETH/frxETH", "1-0xb97AA2c3fed9e2cd1805a6A97546884d362dff33"],
+    ["dgnETH/ETH+", "1-0x3F5882a0cd3F2f2436f0e46D13f6ab7286f8ad0e"]
   ]);
   
   async function fetchJson<T>(url: string, opts?: RequestInit): Promise<T> {
@@ -83,19 +83,15 @@ export type Opportunity = {
   
       console.log("Total strategies fetched from StakeDAO:", strategies.length);
   
-      // Debug: Log all ETH-related strategy names
-      const ethStrategies = strategies
-        .filter(s => (s.name || "").toLowerCase().includes("eth"))
-        .map(s => s.name);
-      console.log("All ETH strategies:", ethStrategies);
+      // Filter valid strategies first
+      const validStrategies = strategies.filter(isValidStakeDAOStrategy);
+      console.log("Valid StakeDAO strategies after filtering:", validStrategies.length);
   
       // Group duplicates by name and pick the one with highest TVL
       const strategyMap = new Map<string, StakeDAOStrategy>();
       
-      strategies
-        .filter(isValidStakeDAOStrategy)
-        .forEach((strategy) => {
-          const name = strategy.name;
+      validStrategies.forEach((strategy) => {
+          const name = strategy.name.trim();
           const existing = strategyMap.get(name);
           
           // Keep the one with higher TVL
@@ -104,21 +100,17 @@ export type Opportunity = {
           }
         });
   
+      console.log("After deduplication:", strategyMap.size);
+  
       const opportunities: Opportunity[] = Array.from(strategyMap.values())
         .map((strategy) => {
           const product = strategy.name;
           
-          // Safely extract address as string
-          let poolAddress = "";
-          if (typeof strategy.address === "string") {
-            poolAddress = strategy.address;
-          } else if (typeof strategy.gauge === "string") {
-            poolAddress = strategy.gauge;
-          }
-          
-          const url = poolAddress
-            ? `https://curve.fi/#/ethereum/pools/${poolAddress}/deposit`
-            : "https://curve.fi";
+          // Get the vault address from our mapping
+          const vaultId = TARGET_POOLS.get(product);
+          const url = vaultId
+            ? `https://www.stakedao.org/strategy?protocol=curve&vault=${vaultId}`
+            : "https://www.stakedao.org";
   
           return {
             protocol: "StakeDAO",
